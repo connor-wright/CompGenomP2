@@ -150,7 +150,7 @@ void STData::printLongestRepeat()
   if(deepestInternal != nullptr)
   {
     constructLongestRepeat(deepestInternal, &longestRepeatLabel);
-    longestRepeat = inputStr->substr(longestRepeatLabel.startIndex, longestRepeatLabel.endIndex);
+    longestRepeat = inputStr->substr(longestRepeatLabel.startIndex, deepestInternal->getDepth());
     cout << "Longest Repeating segment: " << longestRepeat << '\n';
     cout << "locations: ";
     SuffixTreeNode * child = deepestInternal->getChildPointer();
