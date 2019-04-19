@@ -13,16 +13,16 @@ SuffixTreeNode::SuffixTreeNode()
   childrenPointer = nullptr;
   sibling = nullptr;
   sl = this;
-  label = "";
+  label = {0, 0};
 }
 
 
 //constructor with arguments. Requires an id, label string, and a pointer to the parent.
 //Optional child and sibling pointers, default to null if not provided. Depth in tree can be passed in, or computed by default.
-SuffixTreeNode::SuffixTreeNode(const int & newId, const string & labelStr, SuffixTreeNode * parentPtr, SuffixTreeNode * childPtr , SuffixTreeNode * siblingPtr, const int & treeDepth)
+SuffixTreeNode::SuffixTreeNode(const int & newId, const Label & inLabel, SuffixTreeNode * parentPtr, SuffixTreeNode * childPtr , SuffixTreeNode * siblingPtr, const int & treeDepth)
 {
   id = newId;
-  label = labelStr;
+  label = inLabel;
   parent = parentPtr;
   childrenPointer = childPtr;
   sibling = siblingPtr;
@@ -67,10 +67,11 @@ SuffixTreeNode * SuffixTreeNode::getChildPointer()
   return childrenPointer;
 }
 
-SuffixTreeNode * SuffixTreeNode::getChild(char firstLabel)
+SuffixTreeNode * SuffixTreeNode::getChild(char firstLabel, const string * fullString)
 {
   int compare = 0;
   SuffixTreeNode * indexer = childrenPointer;
+  Label indexerLabel;
   if(indexer == nullptr)
   {
     return nullptr;
@@ -78,7 +79,9 @@ SuffixTreeNode * SuffixTreeNode::getChild(char firstLabel)
 
   while(true)
   {
-    compare = Alphabet::compare(firstLabel, indexer->getLabel()[0]);
+    indexerLabel = indexer->getLabel();
+    //compare = Alphabet::compare(firstLabel, indexer->getLabel()[0]);
+    compare = Alphabet::compare(firstLabel, (*fullString)[indexerLabel.startIndex]);
     if(compare == 0)
     {
       //found child
@@ -104,7 +107,7 @@ SuffixTreeNode * SuffixTreeNode::getSL()
   return sl;
 }
 
-string SuffixTreeNode::getLabel() {
+Label SuffixTreeNode::getLabel() {
   return label;
 }
 
@@ -126,7 +129,7 @@ void SuffixTreeNode::setChildrenPointer(SuffixTreeNode * newChildPointer)
 void SuffixTreeNode::calculateDepth()
 {
   assert(parent != nullptr);
-  depth = parent->getDepth() + label.size();
+  depth = parent->getDepth() + label.endIndex - label.startIndex;
   //propagate changes throgh tree
   if(sibling != nullptr)
   {
@@ -143,7 +146,7 @@ void SuffixTreeNode::setDepth(int newDepth)
   depth = newDepth;
 }
 
-void SuffixTreeNode::setLabel(const string & newLabel)
+void SuffixTreeNode::setLabel(const Label & newLabel)
 {
   label = newLabel;
 }
@@ -156,10 +159,10 @@ void SuffixTreeNode::setSL(SuffixTreeNode * v)
   sl = v;
 }
 
-SuffixTreeNode * SuffixTreeNode::addChild(SuffixTreeNode * newChild)
+SuffixTreeNode * SuffixTreeNode::addChild(SuffixTreeNode * newChild, const string * fullString)
 {
   //check the child is valid
-  assert(newChild->getLabel() != "");
+  assert(newChild->getLabel().startIndex != newChild->getLabel().endIndex);
 
   //check if the parent has a child already
   if(childrenPointer == nullptr)
@@ -172,7 +175,7 @@ SuffixTreeNode * SuffixTreeNode::addChild(SuffixTreeNode * newChild)
   }
   else
   {
-    addSibling(newChild, childrenPointer);
+    addSibling(newChild, childrenPointer, fullString);
   }
 
   return newChild;
@@ -181,7 +184,8 @@ SuffixTreeNode * SuffixTreeNode::addChild(SuffixTreeNode * newChild)
 //inserts a sibling in lexographic order
 //called within parent node
 SuffixTreeNode * SuffixTreeNode::addSibling(SuffixTreeNode * newSibling,
-                                            SuffixTreeNode * firstSibling)
+                                            SuffixTreeNode * firstSibling,
+                                            const string * fullString)
 {
   SuffixTreeNode * currentSibling = firstSibling;
   SuffixTreeNode * previousSibling = nullptr;
@@ -192,17 +196,22 @@ SuffixTreeNode * SuffixTreeNode::addSibling(SuffixTreeNode * newSibling,
   newSibling->setParent(this);
   newSibling->calculateDepth();
 
+  Label newSiblingLabel = newSibling->getLabel();
+  Label currentSiblingLabel;
+
   while(!inserted)
   {
-    ordering = Alphabet::compare(newSibling->getLabel()[0], currentSibling->getLabel()[0]);
+    currentSiblingLabel = currentSibling->getLabel();
+    ordering = Alphabet::compare((*fullString)[newSiblingLabel.startIndex], (*fullString)[currentSiblingLabel.startIndex]);
     //we should not be inserting the same characters
-    assert(ordering != 0 || newSibling->getLabel()[0] != '$');
-    
+    //assert(ordering != 0 || newSibling->getLabel()[0] != '$');
+    assert(ordering != 0 || newSiblingLabel.startIndex != fullString->length() - 1);
+
     if(ordering < 0)
     {
       //we insert before
       newSibling->setSibling(currentSibling);
-      
+
       if(currentSibling == firstSibling)
       {
         //first in the list
@@ -231,7 +240,7 @@ SuffixTreeNode * SuffixTreeNode::addSibling(SuffixTreeNode * newSibling,
         //increment for search
         previousSibling = currentSibling;
         currentSibling = currentSibling->getSibling();
-      } 
+      }
     }
   }
 
@@ -241,7 +250,7 @@ SuffixTreeNode * SuffixTreeNode::addSibling(SuffixTreeNode * newSibling,
 //removes a child and returns it
 SuffixTreeNode * SuffixTreeNode::removeChild(SuffixTreeNode * childToRemove)
 {
-  SuffixTreeNode * currentSibling = childrenPointer; 
+  SuffixTreeNode * currentSibling = childrenPointer;
   SuffixTreeNode * previousSibling = nullptr;
 
   while(true)
@@ -285,9 +294,9 @@ SuffixTreeNode * SuffixTreeNode::removeChild(SuffixTreeNode * childToRemove)
   }
 }
 
-SuffixTreeNode * SuffixTreeNode::addInternalNode(char firstLabel, int indexBreak, int id)
+SuffixTreeNode * SuffixTreeNode::addInternalNode(char firstLabel, const string * fullString, int indexBreak, int id)
 {
-  SuffixTreeNode * childAlongEdge = getChild(firstLabel);
+  SuffixTreeNode * childAlongEdge = getChild(firstLabel, fullString);
   assert(childAlongEdge != nullptr);
 
   //remove the child of the edge we want to break
@@ -295,23 +304,28 @@ SuffixTreeNode * SuffixTreeNode::addInternalNode(char firstLabel, int indexBreak
   assert(childAlongEdge != nullptr);
 
   //convert label to string for easy conversion
-  string oldLabelString = string(childAlongEdge->getLabel());
-  string childAlongEdgeLabelString = string(oldLabelString.substr(indexBreak));
-  string newInternalNodeLabelString= string(oldLabelString.substr(0, indexBreak));
+  //string oldLabelString = string(childAlongEdge->getLabel());
+  Label oldLabel = childAlongEdge->getLabel();
+  //string childAlongEdgeLabelString = string(oldLabelString.substr(indexBreak));
+  Label childAlongEdgeLabel = oldLabel;
 
+  childAlongEdgeLabel.startIndex += indexBreak;
+  //string newInternalNodeLabelString= string(oldLabelString.substr(0, indexBreak));
+  Label newInternalNodeLabel = oldLabel;
+  newInternalNodeLabel.endIndex = oldLabel.startIndex + indexBreak;
   //save memory
-  oldLabelString = "";
+  //oldLabelString = "";
 
   //edge is now broken
-  childAlongEdge->setLabel(childAlongEdgeLabelString);
-  
+  childAlongEdge->setLabel(childAlongEdgeLabel);
+
   //create new internal node
-  SuffixTreeNode * newInternalNode = new SuffixTreeNode(id, newInternalNodeLabelString, nullptr);
-  
+  SuffixTreeNode * newInternalNode = new SuffixTreeNode(id, newInternalNodeLabel, nullptr);
+
   //new internal node added
-  addChild(newInternalNode);
+  addChild(newInternalNode, fullString);
   //old child added
-  newInternalNode->addChild(childAlongEdge);
+  newInternalNode->addChild(childAlongEdge, fullString);
 
   return newInternalNode;
 }

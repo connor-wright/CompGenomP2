@@ -17,14 +17,15 @@ class STData {
 private:
 //***********data*****************
   static unsigned int internalNodes, leafNodes, len, position;
-  static char * bwt, * inputStr;
+  static char * bwt;
+  static string * inputStr;
   static struct timeval * startTime, * endTime;
   static SuffixTreeNode * deepestInternal;
 
 //******private methods***********
 
   //recursive contstruction of longest repeating string
-  static string constructLongestRepeat(SuffixTreeNode * currentNode);
+  static bool constructLongestRepeat(SuffixTreeNode * currentNode, Label * cumulativeLabel);
 
 public:
 
@@ -42,7 +43,7 @@ public:
   static void stopTimer();
 
   //initialize the static class
-  static void init(char * str, const unsigned int & length);
+  static void init(string * str, const unsigned int & length);
   //destroy the dynamically-sized bwt table, as well as timers if used
   static void done();
 

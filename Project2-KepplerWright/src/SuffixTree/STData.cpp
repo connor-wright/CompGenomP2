@@ -3,25 +3,31 @@
 
 //set default static variable values
 unsigned int STData::internalNodes = 0, STData::leafNodes = 0, STData::len = 0, STData::position = 0;
-char * STData::bwt = nullptr, * STData::inputStr = nullptr;
+char * STData::bwt = nullptr;
+string * STData::inputStr = nullptr;
 struct timeval * STData::startTime = nullptr, * STData::endTime = nullptr;
 SuffixTreeNode * STData::deepestInternal = nullptr;
 
 
 //******private methods***********
-string STData::constructLongestRepeat(SuffixTreeNode * currentNode)
+bool STData::constructLongestRepeat(SuffixTreeNode * currentNode, Label * cumulativeLabel)
 {
   if(currentNode->getId() == 0)
   {
-    return "";
+    return true;
   }
-  else return constructLongestRepeat(currentNode->getParent()) + currentNode->getLabel();
+  //if parent node is root
+  if(constructLongestRepeat(currentNode->getParent(), cumulativeLabel) == true)
+  {
+    cumulativeLabel->startIndex = currentNode->getLabel().startIndex;
+  }
+  return false;
 }
 
 //*******public methods*************
 
 //initialize the static class
-void STData::init(char * str, const unsigned int & length)
+void STData::init(string * str, const unsigned int & length)
 {
   len = length;
   inputStr =  str;
@@ -85,7 +91,7 @@ void STData::pushBwt(unsigned int index)
   {
     index = len + 1;
   }
-  bwt[position] = inputStr[index - 2];
+  bwt[position] = (*inputStr)[index - 2];
   position++;
 }
 
@@ -139,10 +145,12 @@ void STData::printElapsedTime()
 void STData::printLongestRepeat()
 {
   string longestRepeat;
+  Label longestRepeatLabel = deepestInternal->getLabel();
   bool exit = false;
   if(deepestInternal != nullptr)
   {
-    longestRepeat = constructLongestRepeat(deepestInternal);
+    constructLongestRepeat(deepestInternal, &longestRepeatLabel);
+    longestRepeat = inputStr->substr(longestRepeatLabel.startIndex, deepestInternal->getDepth());
     cout << "Longest Repeating segment: " << longestRepeat << '\n';
     cout << "locations: ";
     SuffixTreeNode * child = deepestInternal->getChildPointer();
